@@ -26,6 +26,27 @@ services:
       - traefik.http.routers.cadran-seo-secure.entrypoints=websecure
       - traefik.http.routers.cadran-seo-secure.tls.certresolver=letsencrypt
       - traefik.http.routers.cadran-seo-secure.service=cadran-seo
+      - traefik.http.routers.cadran-seo-secure.middlewares=cadran-seo-auth
+      # The whole site is behind a shared password. The credential pair lives in
+      # BASIC_AUTH_USERS on the Dokploy app, never in this repository -- it is
+      # public, and a bcrypt hash in a public tree is an offline cracking target.
+      - traefik.http.middlewares.cadran-seo-auth.basicauth.users=${BASIC_AUTH_USERS}
+      # Two paths CANNOT authenticate and must bypass the gate, or closing the
+      # door breaks them silently:
+      #   /api/stripe-webhook  Stripe holds no password. Behind basicauth every
+      #                        delivery 401s and no purchase notification is ever
+      #                        sent. It is not left unprotected: the handler
+      #                        verifies Stripe's HMAC signature, which is a
+      #                        stronger check than a shared password.
+      #   /api/healthz         the uptime probe would report the api permanently
+      #                        down. It returns "ok" and nothing else.
+      # Higher priority than the catch-all router, set explicitly rather than
+      # relying on Traefik's rule-length ordering.
+      - traefik.http.routers.cadran-seo-open.rule=Host(`cadran-seo.devanchor.company`) && (Path(`/api/stripe-webhook`) || Path(`/api/healthz`))
+      - traefik.http.routers.cadran-seo-open.entrypoints=websecure
+      - traefik.http.routers.cadran-seo-open.tls.certresolver=letsencrypt
+      - traefik.http.routers.cadran-seo-open.service=cadran-seo
+      - traefik.http.routers.cadran-seo-open.priority=100
       - traefik.http.services.cadran-seo.loadbalancer.server.port=80
     # /etc/docker/daemon.json on this host configures no log rotation and
     # /var/lib/docker/containers is already large, so every service sets its
