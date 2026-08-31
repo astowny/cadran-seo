@@ -1,0 +1,27 @@
+services:
+  cadran-seo:
+    image: nginx:alpine
+    container_name: cadran-seo
+    restart: unless-stopped
+    volumes:
+      # Relative to this file, i.e. the repository Dokploy clones.
+      - ./:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - dokploy-network
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+      - traefik.http.routers.cadran-seo-web.rule=Host(`cadran-seo.devanchor.company`)
+      - traefik.http.routers.cadran-seo-web.entrypoints=web
+      - traefik.http.routers.cadran-seo-web.middlewares=redirect-to-https@file
+      - traefik.http.routers.cadran-seo-web.service=cadran-seo
+      - traefik.http.routers.cadran-seo-secure.rule=Host(`cadran-seo.devanchor.company`)
+      - traefik.http.routers.cadran-seo-secure.entrypoints=websecure
+      - traefik.http.routers.cadran-seo-secure.tls.certresolver=letsencrypt
+      - traefik.http.routers.cadran-seo-secure.service=cadran-seo
+      - traefik.http.services.cadran-seo.loadbalancer.server.port=80
+
+networks:
+  dokploy-network:
+    external: true
